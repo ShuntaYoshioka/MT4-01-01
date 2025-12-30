@@ -82,10 +82,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		memcpy(preKeys, keys, 256);
 		Novice::GetHitKeyStateAll(keys);
 
-		// ===== 更新 =====
 		Matrix4x4 rotateMatrix = MakeRotateAxisAngle(axis, angle);
 
-		// ===== 描画 =====
 		MatrixScreenPrintf(0, 0, rotateMatrix, "rotateMatrix");
 
 		Novice::EndFrame();
