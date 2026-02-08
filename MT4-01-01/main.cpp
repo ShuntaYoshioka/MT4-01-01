@@ -1,113 +1,59 @@
 #include <Novice.h>
 #include <cmath>
 #include <cstring>
-#include <algorithm>
 
-const char kWindowTitle[] = "DirectionToDirection";
-const int kRowHeight = 20;
+const char kWindowTitle[] = "Quaternion";
 
-struct Vector3 {
-    float x, y, z;
+struct Quaternion {
+    float x;
+    float y;
+    float z;
+    float w;
 };
 
-struct Matrix4x4 {
-    float m[4][4];
-};
-
-float Length(const Vector3& v) {
-    return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+Quaternion IdentityQuaternion() {
+    return { 0.0f, 0.0f, 0.0f, 1.0f };
 }
 
-Vector3 Normalize(const Vector3& v) {
-    float len = Length(v);
-    return { v.x / len, v.y / len, v.z / len };
+Quaternion Conjugate(const Quaternion& q) {
+    return { -q.x, -q.y, -q.z, q.w };
 }
 
-float Dot(const Vector3& a, const Vector3& b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
+
+float Norm(const Quaternion& q) {
+    return std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
 }
 
-Vector3 Cross(const Vector3& a, const Vector3& b) {
-    return {
-        a.y * b.z - a.z * b.y,
-        a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x
-    };
+Quaternion Normalize(const Quaternion& q) {
+    float n = Norm(q);
+    return { q.x / n, q.y / n, q.z / n, q.w / n };
 }
 
-Matrix4x4 MakeIdentity() {
-    Matrix4x4 m{};
-    m.m[0][0] = 1; m.m[1][1] = 1; m.m[2][2] = 1; m.m[3][3] = 1;
-    return m;
+Quaternion Inverse(const Quaternion& q) {
+    Quaternion conj = Conjugate(q);
+    float n2 = Norm(q);
+    n2 = n2 * n2; // norm^2
+
+    return { conj.x / n2, conj.y / n2, conj.z / n2, conj.w / n2 };
 }
 
-Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
-    float x = axis.x;
-    float y = axis.y;
-    float z = axis.z;
+Quaternion Multiply(const Quaternion& a, const Quaternion& b) {
+    Quaternion result;
 
-    float c = std::cos(angle);
-    float s = std::sin(angle);
-    float t = 1.0f - c;
+    result.x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y;
+    result.y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x;
+    result.z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w;
+    result.w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z;
 
-    Matrix4x4 m{};
-
-    m.m[0][0] = t * x * x + c;
-    m.m[0][1] = t * x * y + s * z;
-    m.m[0][2] = t * x * z - s * y;
-    m.m[0][3] = 0;
-
-    m.m[1][0] = t * x * y - s * z;
-    m.m[1][1] = t * y * y + c;
-    m.m[1][2] = t * y * z + s * x;
-    m.m[1][3] = 0;
-
-    m.m[2][0] = t * x * z + s * y;
-    m.m[2][1] = t * y * z - s * x;
-    m.m[2][2] = t * z * z + c;
-    m.m[2][3] = 0;
-
-    m.m[3][0] = 0;
-    m.m[3][1] = 0;
-    m.m[3][2] = 0;
-    m.m[3][3] = 1;
-
-    return m;
+    return result;
 }
 
-Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
-    Vector3 f = Normalize(from);
-    Vector3 t = Normalize(to);
-
-    float dot = Dot(f, t);
-
-    dot = std::clamp(dot, -1.0f, 1.0f);
-
-
-    if (dot < -0.9999f) {
-        Vector3 axis;
-        if (std::abs(f.x) < 0.999f)
-            axis = Normalize(Cross(f, { 1,0,0 }));
-        else
-            axis = Normalize(Cross(f, { 0,1,0 }));
-        return MakeRotateAxisAngle(axis, 3.14159265f);
-    }
-
-    Vector3 axis = Normalize(Cross(f, t));
-    float angle = std::acos(dot);
-
-    return MakeRotateAxisAngle(axis, angle);
-}
-
-void MatrixScreenPrintf(int x, int y, const Matrix4x4& m, const char* label) {
+void PrintQuaternion(int x, int y, const Quaternion& q, const char* label) {
     Novice::ScreenPrintf(x, y, "%s", label);
-    for (int i = 0; i < 4; i++) {
-        Novice::ScreenPrintf(
-            x, y + 20 + i * 20,
-            "%6.3f %6.3f %6.3f %6.3f",
-            m.m[i][0], m.m[i][1], m.m[i][2], m.m[i][3]
-        );
-    }
+    Novice::ScreenPrintf(x, y + 20, "x: %.3f", q.x);
+    Novice::ScreenPrintf(x, y + 40, "y: %.3f", q.y);
+    Novice::ScreenPrintf(x, y + 60, "z: %.3f", q.z);
+    Novice::ScreenPrintf(x, y + 80, "w: %.3f", q.w);
 }
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -117,11 +63,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     char keys[256] = {};
     char preKeys[256] = {};
 
-    Vector3 from0 = Normalize({ 1.0f, 0.7f, 0.5f });
-    Vector3 to0 = from0;
+    Quaternion q1 = { 2.0f, 3.0f, 4.0f, 1.0f };
+    Quaternion q2 = { 1.0f, 3.0f, 5.0f, 2.0f };
 
-    Vector3 from1 = Normalize({ -0.6f, 0.9f, 0.2f });
-    Vector3 to1 = Normalize({ 0.4f, 0.7f, -0.5f });
+    Quaternion identity = IdentityQuaternion();
+    Quaternion conj = Conjugate(q1);
+    Quaternion inv = Inverse(q1);
+    Quaternion normal = Normalize(q1);
+    Quaternion mul1 = Multiply(q1, q2);
+    Quaternion mul2 = Multiply(q2, q1);
+    float norm = Norm(q1);
 
     while (Novice::ProcessMessage() == 0) {
         Novice::BeginFrame();
@@ -129,17 +80,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         memcpy(preKeys, keys, 256);
         Novice::GetHitKeyStateAll(keys);
 
-        Matrix4x4 rotateMatrix0 = DirectionToDirection(
-            Normalize({ 1.0f, 0.0f, 0.0f }),
-            Normalize({ -1.0f, 0.0f, 0.0f })
-        );
+        PrintQuaternion(0, 0, identity, "Identity");
+        PrintQuaternion(200, 0, conj, "Conjugate");
+        PrintQuaternion(400, 0, inv, "Inverse");
+        PrintQuaternion(600, 0, normal, "Normalize");
+        PrintQuaternion(800, 0, mul1, "Multiply q1 * q2");
+        PrintQuaternion(1000, 0, mul2, "Multiply q2 * q1");
 
-        Matrix4x4 rotateMatrix1 = DirectionToDirection(from0, to0);
-        Matrix4x4 rotateMatrix2 = DirectionToDirection(from1, to1);
-
-        MatrixScreenPrintf(0, 0, rotateMatrix0, "rotateMatrix0");
-        MatrixScreenPrintf(0, kRowHeight * 5, rotateMatrix1, "rotateMatrix1");
-        MatrixScreenPrintf(0, kRowHeight * 10, rotateMatrix2, "rotateMatrix2");
+        Novice::ScreenPrintf(0, 200, "Norm(q1): %.3f", norm);
 
         Novice::EndFrame();
 
