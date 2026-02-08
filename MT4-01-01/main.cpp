@@ -3,7 +3,7 @@
 #include <cstring>
 #include <algorithm>
 
-const char kWindowTitle[] = "DirectionToDirection";
+const char kWindowTitle[] = "01-02";
 const int kRowHeight = 20;
 
 struct Vector3 {
