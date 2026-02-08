@@ -1,6 +1,7 @@
 #include <Novice.h>
 #include <cmath>
 #include <cstring>
+#include <algorithm>
 
 const char kWindowTitle[] = "DirectionToDirection";
 const int kRowHeight = 20;
@@ -13,7 +14,6 @@ struct Matrix4x4 {
     float m[4][4];
 };
 
-// ================= Vector =================
 float Length(const Vector3& v) {
     return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
@@ -35,7 +35,6 @@ Vector3 Cross(const Vector3& a, const Vector3& b) {
     };
 }
 
-// ================= Matrix =================
 Matrix4x4 MakeIdentity() {
     Matrix4x4 m{};
     m.m[0][0] = 1; m.m[1][1] = 1; m.m[2][2] = 1; m.m[3][3] = 1;
@@ -81,6 +80,9 @@ Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
     Vector3 t = Normalize(to);
 
     float dot = Dot(f, t);
+
+    dot = std::clamp(dot, -1.0f, 1.0f);
+
 
     if (dot < -0.9999f) {
         Vector3 axis;
