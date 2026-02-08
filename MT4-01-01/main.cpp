@@ -1,78 +1,154 @@
-#include <Novice.h>
+﻿#include <Novice.h>
 #include <cmath>
 #include <cstring>
 
-const char kWindowTitle[] = "Quaternion";
+const char kWindowTitle[] = "01-04";
+const int kRowHeight = 20;
 
-struct Quaternion {
-    float x;
-    float y;
-    float z;
-    float w;
+struct Vector3 {
+    float x, y, z;
 };
 
-Quaternion IdentityQuaternion() {
-    return { 0.0f, 0.0f, 0.0f, 1.0f };
+struct Quaternion {
+    float x, y, z, w;
+};
+
+struct Matrix4x4 {
+    float m[4][4];
+};
+
+float Length(const Vector3& v) {
+    return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
+Vector3 Normalize(const Vector3& v) {
+    float len = Length(v);
+    return { v.x / len, v.y / len, v.z / len };
+}
+
+Vector3 Transform(const Vector3& v, const Matrix4x4& m) {
+    Vector3 r;
+    r.x = v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0] + m.m[3][0];
+    r.y = v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1] + m.m[3][1];
+    r.z = v.x * m.m[0][2] + v.y * m.m[1][2] + v.z * m.m[2][2] + m.m[3][2];
+    return r;
 }
 
 Quaternion Conjugate(const Quaternion& q) {
     return { -q.x, -q.y, -q.z, q.w };
 }
 
-
-float Norm(const Quaternion& q) {
-    return std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
-}
-
-Quaternion Normalize(const Quaternion& q) {
-    float n = Norm(q);
-    return { q.x / n, q.y / n, q.z / n, q.w / n };
-}
-
-Quaternion Inverse(const Quaternion& q) {
-    Quaternion conj = Conjugate(q);
-    float n2 = Norm(q);
-    n2 = n2 * n2; // norm^2
-
-    return { conj.x / n2, conj.y / n2, conj.z / n2, conj.w / n2 };
-}
-
 Quaternion Multiply(const Quaternion& a, const Quaternion& b) {
-    Quaternion result;
-
-    result.x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y;
-    result.y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x;
-    result.z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w;
-    result.w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z;
-
-    return result;
+    Quaternion r;
+    r.x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y;
+    r.y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x;
+    r.z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w;
+    r.w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z;
+    return r;
 }
 
-void PrintQuaternion(int x, int y, const Quaternion& q, const char* label) {
-    Novice::ScreenPrintf(x, y, "%s", label);
-    Novice::ScreenPrintf(x, y + 20, "x: %.3f", q.x);
-    Novice::ScreenPrintf(x, y + 40, "y: %.3f", q.y);
-    Novice::ScreenPrintf(x, y + 60, "z: %.3f", q.z);
-    Novice::ScreenPrintf(x, y + 80, "w: %.3f", q.w);
+Quaternion MakeRotateAxisAngleQuaternion(const Vector3& axis, float angle) {
+    Vector3 n = Normalize(axis); // ★必須
+
+    float half = angle * 0.5f;
+    float s = std::sin(half);
+
+    return {
+        n.x * s,
+        n.y * s,
+        n.z * s,
+        std::cos(half)
+    };
+}
+
+Vector3 RotateVector(const Vector3& v, const Quaternion& q) {
+    Quaternion p = { v.x, v.y, v.z, 0.0f };
+    Quaternion qConj = Conjugate(q);
+
+    Quaternion result = Multiply(Multiply(q, p), qConj);
+
+    return { result.x, result.y, result.z };
+}
+
+Matrix4x4 MakeRotateMatrix(const Quaternion& q) {
+    Matrix4x4 m{};
+
+    float xx = q.x * q.x;
+    float yy = q.y * q.y;
+    float zz = q.z * q.z;
+    float xy = q.x * q.y;
+    float xz = q.x * q.z;
+    float yz = q.y * q.z;
+    float wx = q.w * q.x;
+    float wy = q.w * q.y;
+    float wz = q.w * q.z;
+
+    m.m[0][0] = 1 - 2 * (yy + zz);
+    m.m[0][1] = 2 * (xy + wz);
+    m.m[0][2] = 2 * (xz - wy);
+    m.m[0][3] = 0;
+
+    m.m[1][0] = 2 * (xy - wz);
+    m.m[1][1] = 1 - 2 * (xx + zz);
+    m.m[1][2] = 2 * (yz + wx);
+    m.m[1][3] = 0;
+
+    m.m[2][0] = 2 * (xz + wy);
+    m.m[2][1] = 2 * (yz - wx);
+    m.m[2][2] = 1 - 2 * (xx + yy);
+    m.m[2][3] = 0;
+
+    m.m[3][0] = 0;
+    m.m[3][1] = 0;
+    m.m[3][2] = 0;
+    m.m[3][3] = 1;
+
+    return m;
+}
+
+void QuaternionScreenPrintf(int x, int y, const Quaternion& q, const char* name) {
+    Novice::ScreenPrintf(x, y, "%s", name);
+    Novice::ScreenPrintf(x, y + 20, "x: %.2f", q.x);
+    Novice::ScreenPrintf(x, y + 40, "y: %.2f", q.y);
+    Novice::ScreenPrintf(x, y + 60, "z: %.2f", q.z);
+    Novice::ScreenPrintf(x, y + 80, "w: %.2f", q.w);
+}
+
+void MatrixScreenPrintf(int x, int y, const Matrix4x4& m, const char* name) {
+    Novice::ScreenPrintf(x, y, "%s", name);
+    for (int i = 0; i < 4; i++) {
+        Novice::ScreenPrintf(
+            x, y + 20 + i * 20,
+            "%.2f %.2f %.2f %.2f",
+            m.m[i][0], m.m[i][1], m.m[i][2], m.m[i][3]
+        );
+    }
+}
+
+void VectorScreenPrintf(int x, int y, const Vector3& v, const char* name) {
+    Novice::ScreenPrintf(x, y, "%s", name);
+    Novice::ScreenPrintf(x, y + 20, "x: %.2f y: %.2f z: %.2f", v.x, v.y, v.z);
 }
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     Novice::Initialize(kWindowTitle, 1280, 720);
 
-    char keys[256] = {};
-    char preKeys[256] = {};
+    char keys[256]{};
+    char preKeys[256]{};
 
-    Quaternion q1 = { 2.0f, 3.0f, 4.0f, 1.0f };
-    Quaternion q2 = { 1.0f, 3.0f, 5.0f, 2.0f };
+    Quaternion rotation =
+        MakeRotateAxisAngleQuaternion(
+            Normalize({ 1.0f, 0.4f, -0.2f }),
+            0.45f
+        );
 
-    Quaternion identity = IdentityQuaternion();
-    Quaternion conj = Conjugate(q1);
-    Quaternion inv = Inverse(q1);
-    Quaternion normal = Normalize(q1);
-    Quaternion mul1 = Multiply(q1, q2);
-    Quaternion mul2 = Multiply(q2, q1);
-    float norm = Norm(q1);
+    Vector3 pointY = { 2.1f, -0.9f, 1.3f };
+
+    Matrix4x4 rotateMatrix = MakeRotateMatrix(rotation);
+
+    Vector3 rotateByQuaternion = RotateVector(pointY, rotation);
+    Vector3 rotateByMatrix = Transform(pointY, rotateMatrix);
 
     while (Novice::ProcessMessage() == 0) {
         Novice::BeginFrame();
@@ -80,14 +156,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         memcpy(preKeys, keys, 256);
         Novice::GetHitKeyStateAll(keys);
 
-        PrintQuaternion(0, 0, identity, "Identity");
-        PrintQuaternion(200, 0, conj, "Conjugate");
-        PrintQuaternion(400, 0, inv, "Inverse");
-        PrintQuaternion(600, 0, normal, "Normalize");
-        PrintQuaternion(800, 0, mul1, "Multiply q1 * q2");
-        PrintQuaternion(1000, 0, mul2, "Multiply q2 * q1");
-
-        Novice::ScreenPrintf(0, 200, "Norm(q1): %.3f", norm);
+        QuaternionScreenPrintf(0, kRowHeight * 0, rotation, "rotation");
+        MatrixScreenPrintf(0, kRowHeight * 6, rotateMatrix, "rotateMatrix");
+        VectorScreenPrintf(0, kRowHeight * 12, rotateByQuaternion, "rotateByQuaternion");
+        VectorScreenPrintf(0, kRowHeight * 16, rotateByMatrix, "rotateByMatrix");
 
         Novice::EndFrame();
 
