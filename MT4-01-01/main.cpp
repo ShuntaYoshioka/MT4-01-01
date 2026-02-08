@@ -2,7 +2,7 @@
 #include <cmath>
 #include <cstring>
 
-const char kWindowTitle[] = "Quaternion";
+const char kWindowTitle[] = "01-03";
 
 struct Quaternion {
     float x;
