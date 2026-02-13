@@ -81,24 +81,28 @@ Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
 
     float dot = Dot(f, t);
 
-    dot = std::clamp(dot, -1.0f, 1.0f);
+    if (dot > 0.9999f) {
+        return MakeIdentity();
+    }
 
-
+    // 2. 真逆方向の場合：180度回転
     if (dot < -0.9999f) {
         Vector3 axis;
-        if (std::abs(f.x) < 0.999f)
-            axis = Normalize(Cross(f, { 1,0,0 }));
-        else
-            axis = Normalize(Cross(f, { 0,1,0 }));
+        // fと平行でない軸を選んで外積をとる
+        if (std::abs(f.x) < 0.707f) {
+            axis = Normalize(Cross(f, { 1, 0, 0 }));
+        } else {
+            axis = Normalize(Cross(f, { 0, 1, 0 }));
+        }
         return MakeRotateAxisAngle(axis, 3.14159265f);
     }
 
+    // 3. 通常の回転
     Vector3 axis = Normalize(Cross(f, t));
-    float angle = std::acos(dot);
+    float angle = std::acos(std::clamp(dot, -1.0f, 1.0f));
 
     return MakeRotateAxisAngle(axis, angle);
 }
-
 void MatrixScreenPrintf(int x, int y, const Matrix4x4& m, const char* label) {
     Novice::ScreenPrintf(x, y, "%s", label);
     for (int i = 0; i < 4; i++) {
